@@ -1,0 +1,46 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: payroll-converter
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: payroll-converter
+        run: pytest -q
+
+      - name: Build EXE with PyInstaller
+        working-directory: payroll-converter
+        run: |
+          pyinstaller --noconfirm --onefile --windowed `
+            --name PayrollConverter `
+            --collect-all customtkinter `
+            --collect-all tkinterdnd2 `
+            main.py
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PayrollConverter-windows
+          path: payroll-converter/dist/PayrollConverter.exe
+          if-no-files-found: error
