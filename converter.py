@@ -199,6 +199,13 @@ def extract_state(address: str) -> Optional[str]:
     return None
 
 
+def _fmt_date(d: date) -> str:
+    """`date(2026, 5, 5)` -> `'5/5/2026'`. Cross-platform alternative to
+    `strftime('%-m/%-d/%Y')` (which is POSIX-only).
+    """
+    return f"{d.month}/{d.day}/{d.year}"
+
+
 def coerce_date(value) -> Optional[date]:
     if value is None:
         return None
@@ -268,8 +275,7 @@ def convert_workbook(path: str, log: Optional[LogFn] = None) -> ConversionResult
 
     pay_start, pay_end = parse_pay_period(rows)
     batch_id = f"{pay_end.isocalendar()[1]:02d}"
-    log(f"Pay period: {pay_start.strftime('%-m/%d/%Y')} → "
-        f"{pay_end.strftime('%-m/%d/%Y')}")
+    log(f"Pay period: {_fmt_date(pay_start)} → {_fmt_date(pay_end)}")
     log(f"Batch ID: {batch_id}")
     log("")
     log("Parsing rows...")
