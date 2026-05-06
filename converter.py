@@ -506,7 +506,7 @@ def _fmt_num(x: float) -> str:
 
 def _file_number(emp_number: str) -> str:
     digits = emp_number.lstrip("0") or "0"
-    return f"{CO_CODE}{int(digits):06d}"
+    return f"{int(digits):06d}"
 
 
 def build_output_rows(
@@ -572,12 +572,15 @@ def _output_sort_key(row: list[str]) -> tuple[int, int]:
 
 def write_output_csv(path: str, output_rows: list[list[str]]) -> None:
     """Write the CSV to `path`. Caller is responsible for forcing
-    PRJISEPI.csv as the basename.
+    PRJISEPI.csv as the basename. Output has no trailing newline — ADP
+    treats a final empty line as an extra blank record and rejects it.
     """
+    import io
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(OUTPUT_HEADER)
+    for row in output_rows:
+        writer.writerow(row)
+    content = buf.getvalue().rstrip("\r\n")
     with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(OUTPUT_HEADER)
-        # Stable sort that preserves the non-DE-before-DE order for an
-        # employee while sorting by File #.
-        for row in output_rows:
-            writer.writerow(row)
+        f.write(content)

@@ -133,16 +133,16 @@ class TestEmployeeParsing:
 
 class TestFileNumberPadding:
     def test_four_digit(self):
-        assert _file_number("3100") == "JIS003100"
+        assert _file_number("3100") == "003100"
 
     def test_three_digit(self):
-        assert _file_number("563") == "JIS000563"
+        assert _file_number("563") == "000563"
 
     def test_leading_zero_input(self):
-        assert _file_number("0563") == "JIS000563"
+        assert _file_number("0563") == "000563"
 
     def test_five_digit(self):
-        assert _file_number("12345") == "JIS012345"
+        assert _file_number("12345") == "012345"
 
 
 # -----------------------------------------------------------------------------
@@ -280,7 +280,7 @@ class TestRowGeneration:
                             hourly_non_de_reg=8.0, hourly_non_de_ot=0.0)
         rows = build_output_rows([b], "19")
         assert len(rows) == 1
-        assert rows[0][2] == "JIS000100"
+        assert rows[0][2] == "000100"
         assert rows[0][6] == "8.00"
         assert rows[0][7] == ""
 
@@ -370,7 +370,7 @@ class TestEndToEnd:
         result = convert_workbook(sample_path)
         prev = -1
         for r in result.output_rows:
-            digits = int(r[2].replace("JIS", "").lstrip("0") or "0")
+            digits = int(r[2].lstrip("0") or "0")
             assert digits >= prev
             prev = digits
 
