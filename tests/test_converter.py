@@ -19,6 +19,7 @@ from converter import (
     _aggregate_employee,
     _file_number,
     build_output_rows,
+    compute_batch_id,
     convert_workbook,
     extract_state,
     parse_employee_resource,
@@ -149,14 +150,29 @@ class TestFileNumberPadding:
 # ISO week (used for Batch ID)
 # -----------------------------------------------------------------------------
 
-class TestISOWeek:
-    def test_pay_period_end_5_5_2026_is_week_19(self):
-        end = date(2026, 5, 5)
-        assert f"{end.isocalendar()[1]:02d}" == "19"
+class TestBatchID:
+    def test_pay_period_end_5_5_2026_yields_batch_id_20(self):
+        # Payroll's internal week numbering runs one ahead of ISO.
+        # 5/5/2026 is ISO week 19, payroll calls it week 20.
+        assert compute_batch_id(date(2026, 5, 5)) == "20"
 
-    def test_zero_padding_for_single_digit_weeks(self):
-        # Jan 6 2026 is in ISO week 02
-        assert f"{date(2026, 1, 6).isocalendar()[1]:02d}" == "02"
+    def test_zero_padded_to_two_digits(self):
+        # Jan 6 2026 is ISO week 2 → payroll week 3 → "03"
+        assert compute_batch_id(date(2026, 1, 6)) == "03"
+
+    def test_year_rollover_last_iso_week_becomes_week_1(self):
+        # 12/30/2025 is ISO week 1 of 2026 (the year boundary edge case
+        # that the ISO calendar already smooths over). Pick a clearer
+        # case: end of a 53-week ISO year. 2026 has 53 ISO weeks.
+        # Dec 31 2026 is ISO week 53 → payroll week 53+1 → roll to "01".
+        assert compute_batch_id(date(2026, 12, 31)) == "01"
+
+    def test_deterministic_for_same_input(self):
+        # No today() / time-of-run dependency: same date always yields
+        # the same batch ID, regardless of how many times we call it.
+        d = date(2026, 5, 5)
+        results = {compute_batch_id(d) for _ in range(50)}
+        assert results == {"20"}
 
 
 # -----------------------------------------------------------------------------
@@ -344,7 +360,7 @@ def sample_path():
 class TestEndToEnd:
     def test_pipeline_parses_sample(self, sample_path):
         result = convert_workbook(sample_path)
-        assert result.batch_id == "19"
+        assert result.batch_id == "20"
         assert result.pay_period_start == date(2026, 4, 28)
         assert result.pay_period_end == date(2026, 5, 5)
         # Expect ~40 employees (the source file has 40)
@@ -388,5 +404,5 @@ class TestEndToEnd:
             assert all(len(row) == 25 for row in data)
             # Co Code is JIS in every data row
             assert all(row[0] == "JIS" for row in data)
-            # Batch ID is "19" in every data row
-            assert all(row[1] == "19" for row in data)
+            # Batch ID is "20" in every data row
+            assert all(row[1] == "20" for row in data)

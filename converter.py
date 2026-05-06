@@ -108,6 +108,24 @@ _PAY_PERIOD_RE = re.compile(
 )
 
 
+def compute_batch_id(pay_end: date) -> str:
+    """Derive the payroll Batch ID from the pay period end date.
+
+    Why: payroll's internal week number runs one ahead of the ISO week
+    (their week 20 = ISO week 19, etc.). Batch ID is derived from the
+    end date in the source file — never from today() — so re-running
+    the tool against the same xlsx always yields the same Batch ID.
+    """
+    iso_year, iso_week, _ = pay_end.isocalendar()
+    week = iso_week + 1
+    # ISO years have 52 or 53 weeks; Dec 28 is always in the last ISO
+    # week of the year, so we use it to detect the upper bound.
+    weeks_in_year = date(iso_year, 12, 28).isocalendar()[1]
+    if week > weeks_in_year:
+        week = 1
+    return f"{week:02d}"
+
+
 def parse_pay_period(rows: list[tuple]) -> tuple[date, date]:
     for row in rows:
         for cell in row:
@@ -274,7 +292,7 @@ def convert_workbook(path: str, log: Optional[LogFn] = None) -> ConversionResult
     rows = _read_workbook(path)
 
     pay_start, pay_end = parse_pay_period(rows)
-    batch_id = f"{pay_end.isocalendar()[1]:02d}"
+    batch_id = compute_batch_id(pay_end)
     log(f"Pay period: {_fmt_date(pay_start)} → {_fmt_date(pay_end)}")
     log(f"Batch ID: {batch_id}")
     log("")
