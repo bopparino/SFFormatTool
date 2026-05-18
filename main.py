@@ -31,6 +31,11 @@ except Exception:  # pragma: no cover - optional dep
 import converter
 from converter import ConversionError, ConversionResult
 
+try:
+    from _version import __version__
+except ImportError:  # pragma: no cover - only hit if _version.py is missing
+    __version__ = "dev"
+
 
 APP_NAME = "PayrollConverter"
 DEVELOPER_CONTACT = "your IT support"
@@ -114,7 +119,7 @@ def _make_root():
 class PayrollConverterApp:
     def __init__(self):
         self.root = _make_root()
-        self.root.title("Salesforce → ADP Payroll Converter")
+        self.root.title(f"Salesforce → ADP Payroll Converter — v{__version__}")
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.minsize(WINDOW_W, WINDOW_H)
 
@@ -197,6 +202,17 @@ class PayrollConverterApp:
         )
         self.status.pack(fill="both", expand=True)
         self.status.configure(state="disabled")
+
+        # Version stamp — visible at a glance so on-prem users can read
+        # the build out over the phone without firewall'd repo access.
+        version_label = ctk.CTkLabel(
+            outer,
+            text=f"v{__version__}",
+            font=ctk.CTkFont(size=10),
+            text_color="#5a6470",
+            anchor="e",
+        )
+        version_label.pack(fill="x", pady=(6, 0))
 
     # ----- Helpers -----
 

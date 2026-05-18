@@ -8,21 +8,24 @@ from __future__ import annotations
 
 import csv
 import os
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
 import converter as C
 from converter import (
+    ConversionError,
     EmployeeBuckets,
     WorkRow,
     _aggregate_employee,
     _file_number,
     build_output_rows,
+    coerce_date,
     compute_batch_id,
     convert_workbook,
     extract_state,
     parse_employee_resource,
+    parse_pay_period,
     write_output_csv,
 )
 
@@ -173,6 +176,94 @@ class TestBatchID:
         d = date(2026, 5, 5)
         results = {compute_batch_id(d) for _ in range(50)}
         assert results == {"20"}
+
+
+# -----------------------------------------------------------------------------
+# Pay period parsing (load-bearing — feeds Batch ID)
+# -----------------------------------------------------------------------------
+
+class TestParsePayPeriod:
+    def test_normal_extraction(self):
+        rows = [
+            ("Header text",),
+            ("Date Worked equals Custom (4/28/2026 to 5/5/2026)",),
+        ]
+        start, end = parse_pay_period(rows)
+        assert start == date(2026, 4, 28)
+        assert end == date(2026, 5, 5)
+
+    def test_case_insensitive(self):
+        rows = [("date worked EQUALS custom (4/28/2026 to 5/5/2026)",)]
+        start, end = parse_pay_period(rows)
+        assert (start, end) == (date(2026, 4, 28), date(2026, 5, 5))
+
+    def test_embedded_in_longer_cell(self):
+        rows = [
+            ("Filter: Date Worked equals Custom (4/28/2026 to 5/5/2026); user=foo",),
+        ]
+        start, end = parse_pay_period(rows)
+        assert (start, end) == (date(2026, 4, 28), date(2026, 5, 5))
+
+    def test_single_digit_month_and_day(self):
+        rows = [("Date Worked equals Custom (1/2/2026 to 3/4/2026)",)]
+        start, end = parse_pay_period(rows)
+        assert (start, end) == (date(2026, 1, 2), date(2026, 3, 4))
+
+    def test_skips_non_string_cells(self):
+        rows = [
+            (123, None, "Date Worked equals Custom (4/28/2026 to 5/5/2026)"),
+        ]
+        start, end = parse_pay_period(rows)
+        assert (start, end) == (date(2026, 4, 28), date(2026, 5, 5))
+
+    def test_missing_raises_conversion_error(self):
+        rows = [("Some unrelated header",), ("More junk",)]
+        with pytest.raises(ConversionError):
+            parse_pay_period(rows)
+
+    def test_empty_input_raises_conversion_error(self):
+        with pytest.raises(ConversionError):
+            parse_pay_period([])
+
+
+# -----------------------------------------------------------------------------
+# Date coercion (Salesforce hands us dates in several shapes)
+# -----------------------------------------------------------------------------
+
+class TestCoerceDate:
+    def test_none_returns_none(self):
+        assert coerce_date(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert coerce_date("") is None
+        assert coerce_date("   ") is None
+
+    def test_date_passes_through(self):
+        d = date(2026, 5, 5)
+        assert coerce_date(d) == d
+
+    def test_datetime_becomes_date(self):
+        dt = datetime(2026, 5, 5, 9, 30)
+        assert coerce_date(dt) == date(2026, 5, 5)
+
+    def test_mdy_four_digit_year(self):
+        assert coerce_date("5/5/2026") == date(2026, 5, 5)
+        assert coerce_date("05/05/2026") == date(2026, 5, 5)
+
+    def test_mdy_two_digit_year(self):
+        assert coerce_date("5/5/26") == date(2026, 5, 5)
+
+    def test_iso_format(self):
+        assert coerce_date("2026-05-05") == date(2026, 5, 5)
+
+    def test_whitespace_trimmed(self):
+        assert coerce_date("  5/5/2026  ") == date(2026, 5, 5)
+
+    def test_garbage_returns_none(self):
+        assert coerce_date("not a date") is None
+
+    def test_invalid_month_day_returns_none(self):
+        assert coerce_date("13/45/2026") is None
 
 
 # -----------------------------------------------------------------------------
@@ -353,7 +444,8 @@ SAMPLES_DIR = os.path.join(
 def sample_path():
     p = os.path.join(SAMPLES_DIR, "sample_input.xlsx")
     if not os.path.exists(p):
-        pytest.skip(f"Sample not found at {p}")
+        # Fail loudly — a missing sample silently green-lit CI before.
+        pytest.fail(f"Sample not found at {p} — required for end-to-end tests")
     return p
 
 

@@ -27,6 +27,14 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      - name: Stamp version file
+        shell: bash
+        run: |
+          SHA="${GITHUB_SHA:0:7}"
+          DATE=$(date -u +%Y-%m-%d)
+          printf '__version__ = "%s-%s"\n' "$DATE" "$SHA" > _version.py
+          cat _version.py
+
       - name: Build EXE with PyInstaller
         run: |
           pyinstaller --noconfirm --onefile --windowed `
