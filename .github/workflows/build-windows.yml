@@ -41,6 +41,7 @@ jobs:
             --name PayrollConverter `
             --collect-all customtkinter `
             --collect-all tkinterdnd2 `
+            --add-data "theme.json;." `
             main.py
 
       - name: Upload EXE artifact

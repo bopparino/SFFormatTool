@@ -30,6 +30,7 @@ except Exception:  # pragma: no cover - optional dep
 
 import converter
 from converter import ConversionError, ConversionResult
+import theme
 
 try:
     from _version import __version__
@@ -96,8 +97,12 @@ def log_error(exc: BaseException) -> None:
 # App
 # -----------------------------------------------------------------------------
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+ctk.set_appearance_mode("light")
+# When frozen by PyInstaller (--onefile), data files extract to sys._MEIPASS.
+# In dev, fall back to the script's directory.
+_THEME_BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+_THEME_PATH = _THEME_BASE / "theme.json"
+ctk.set_default_color_theme(str(_THEME_PATH) if _THEME_PATH.exists() else "blue")
 
 
 class _AppBase:
@@ -138,7 +143,8 @@ class PayrollConverterApp:
         title = ctk.CTkLabel(
             outer,
             text="Salesforce → ADP Payroll Converter",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            font=ctk.CTkFont(family="Inter", size=24, weight="bold"),
+            text_color=theme.GRAY_900,
         )
         title.pack(pady=(0, 16))
 
@@ -147,9 +153,9 @@ class PayrollConverterApp:
             outer,
             height=140,
             corner_radius=12,
-            fg_color="#1f2630",
+            fg_color=theme.DROP_IDLE_BG,
             border_width=2,
-            border_color="#3a4250",
+            border_color=theme.DROP_IDLE_BORDER,
         )
         self.drop_frame.pack(fill="x", pady=(0, 16))
         self.drop_frame.pack_propagate(False)
@@ -158,7 +164,7 @@ class PayrollConverterApp:
             self.drop_frame,
             text="Drop Salesforce xlsx here\n(or click to browse)",
             font=ctk.CTkFont(size=18),
-            text_color="#c8cfd9",
+            text_color=theme.GRAY_600,
         )
         self.drop_label.pack(expand=True)
 
@@ -182,22 +188,24 @@ class PayrollConverterApp:
         )
         self.convert_btn.pack(fill="x", pady=(0, 16))
 
-        # Status pane
+        # Status pane label — Insight "label-caps" treatment: 10pt, bold, spaced, gray-400
         status_label = ctk.CTkLabel(
             outer,
-            text="Status",
-            font=ctk.CTkFont(size=12),
-            text_color="#7d8694",
+            text="STATUS",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color=theme.GRAY_400,
             anchor="w",
         )
         status_label.pack(fill="x", pady=(0, 4))
 
+        # Status console — dark inset echoes Insight's sidebar contrast
         self.status = ctk.CTkTextbox(
             outer,
             height=240,
-            font=ctk.CTkFont(family="Menlo", size=12),
-            fg_color="#0d1117",
-            text_color="#d0d7de",
+            font=ctk.CTkFont(family="JetBrains Mono", size=12),
+            fg_color=theme.CONSOLE_BG,
+            text_color=theme.CONSOLE_TEXT,
+            border_width=0,
             wrap="word",
         )
         self.status.pack(fill="both", expand=True)
@@ -209,7 +217,7 @@ class PayrollConverterApp:
             outer,
             text=f"v{__version__}",
             font=ctk.CTkFont(size=10),
-            text_color="#5a6470",
+            text_color=theme.GRAY_400,
             anchor="e",
         )
         version_label.pack(fill="x", pady=(6, 0))
@@ -218,20 +226,22 @@ class PayrollConverterApp:
 
     def _set_drop_loaded(self, filename: str):
         self.drop_frame.configure(
-            fg_color="#1d2d1d",
-            border_color="#3d6b3d",
+            fg_color=theme.DROP_LOADED_BG,
+            border_color=theme.DROP_LOADED_BORDER,
         )
         self.drop_label.configure(
             text=f"Loaded: {filename}\n(click to choose a different file)",
+            text_color=theme.GRAY_800,
         )
 
     def _set_drop_idle(self):
         self.drop_frame.configure(
-            fg_color="#1f2630",
-            border_color="#3a4250",
+            fg_color=theme.DROP_IDLE_BG,
+            border_color=theme.DROP_IDLE_BORDER,
         )
         self.drop_label.configure(
             text="Drop Salesforce xlsx here\n(or click to browse)",
+            text_color=theme.GRAY_600,
         )
 
     def _append_status(self, text: str):
