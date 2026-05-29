@@ -120,6 +120,21 @@ class TestEmployeeParsing:
             "0563",
         )
 
+    def test_trailing_internal_identifier_is_discarded(self):
+        # Internal-use codes appended after the number must be ignored, not
+        # cause the employee (and their work rows) to be dropped.
+        for code in ("LDWD", "LMWM", "LMWD", "LDWM"):
+            assert parse_employee_resource(f"Aguilar, Luis - 3100 {code}") == (
+                "Aguilar, Luis",
+                "3100",
+            )
+
+    def test_trailing_identifier_with_comma_name(self):
+        assert parse_employee_resource("Matthews, Jr. Jeffrey - 3146 LMWD") == (
+            "Matthews, Jr. Jeffrey",
+            "3146",
+        )
+
     def test_subtotal_is_not_employee(self):
         assert parse_employee_resource("Subtotal") is None
 

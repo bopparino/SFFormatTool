@@ -177,13 +177,21 @@ def find_header_row(rows: list[tuple]) -> tuple[int, dict[str, int]]:
 # Per-row helpers
 # -----------------------------------------------------------------------------
 
-_EMPLOYEE_RE = re.compile(r"^(.*)-\s*(\d{3,6})\s*$")
+# The Resource cell may carry a trailing internal identifier after the
+# employee number (e.g. `Aguilar, Luis - 3100 LDWD`). These codes are for
+# internal use only and must be ignored — but their presence must NOT cause
+# the employee (and all their work rows) to be dropped. So we anchor the
+# number with a word boundary and discard anything after it.
+_EMPLOYEE_RE = re.compile(r"^(.*)-\s*(\d{3,6})\b.*$")
 _STATE_RE = re.compile(r"^[A-Z]{2}$")
 
 
 def parse_employee_resource(value: str) -> Optional[tuple[str, str]]:
     """`Lastname, Firstname - 0563` -> ('Lastname, Firstname', '0563'). None
     if it doesn't look like an employee row (e.g. Subtotal/Total).
+
+    Any trailing internal identifier after the number (e.g. ` LDWD`) is
+    discarded.
     """
     if not isinstance(value, str):
         return None
